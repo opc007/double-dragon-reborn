@@ -4,7 +4,7 @@
  * 状态：title → mode → dojo → intro → play → (stageClear | gameOver | victory)
  */
 
-import { VIEW_W, VIEW_H, PLAYER_START_LIVES, CHI_MAX } from '../core/constants';
+import { VIEW_W, VIEW_H, PLAYER_START_LIVES, CHI_MAX, RENDER_SCALE } from '../core/constants';
 import { clamp } from '../core/math';
 import { Input } from '../core/input';
 import { audio } from '../core/audio';
@@ -16,11 +16,11 @@ import {
 import { STAGES, stageCount } from '../data/levels';
 import { drawBg, drawVignette } from '../render/backgrounds';
 import { drawFighter, drawHitFlash } from '../render/sprite';
-import { drawHud, drawBanner, drawDialogue, drawCombo, text, FONT, FONT_S, FONT_L, FONT_XL } from '../render/hud';
+import { drawHud, drawDialogue, drawCombo, text, FONT, FONT_S, FONT_XS, FONT_L, FONT_XL } from '../render/hud';
 import { Player } from '../entities/Player';
 import { JIMMY_PAL } from '../data/enemies';
 
-type S = 'title' | 'mode' | 'dojo' | 'intro' | 'play' | 'stageClear' | 'gameOver' | 'victory' | 'pause';
+type S = 'title' | 'mode' | 'dojo' | 'controls' | 'intro' | 'play' | 'stageClear' | 'gameOver' | 'victory' | 'pause';
 
 export class Game {
   private ctx: CanvasRenderingContext2D;
@@ -43,7 +43,7 @@ export class Game {
   constructor(canvas: HTMLCanvasElement) {
     const ctx = canvas.getContext('2d', { alpha: false });
     if (!ctx) throw new Error('2d context unavailable');
-    ctx.imageSmoothingEnabled = false;
+    ctx.imageSmoothingEnabled = true;
     this.ctx = ctx;
     this.input = new Input();
     this.save = loadDojo();
@@ -99,6 +99,7 @@ export class Game {
 
     switch (this.state) {
       case 'title': this.updateTitle(); break;
+      case 'controls': this.updateControls(); break;
       case 'mode': this.updateMode(); break;
       case 'dojo': this.updateDojo(); break;
       case 'intro': this.updateIntro(); break;
@@ -114,9 +115,41 @@ export class Game {
 
   private updateTitle(): void {
     this.titleBlink++;
-    if (this.input.sysPressed('Enter') || this.input.sysPressed('Space')) {
+    const tap = (c: string) => this.input.sysPressed(c);
+    // ENTER 直接开打。模式选择用数字键 2 / 3，不再挡在前面让人按三次
+    if (tap('Enter') || tap('Space') || tap('KeyJ')) {
+      audio.sfx('select');
+      this.twoPlayer = false;
+      this.startGame();
+      return;
+    }
+    if (tap('Digit2') || tap('Numpad2')) {
+      audio.sfx('select');
+      this.twoPlayer = true;
+      this.startGame();
+      return;
+    }
+    if (tap('Digit3') || tap('Numpad3')) {
+      audio.sfx('select');
+      this.go('dojo');
+      return;
+    }
+    if (tap('Digit4') || tap('Numpad4')) {
+      audio.sfx('select');
+      this.go('controls');
+      return;
+    }
+    if (tap('KeyS') || tap('ArrowDown')) {
       audio.sfx('select');
       this.go('mode');
+    }
+  }
+
+  private updateControls(): void {
+    if (this.input.sysPressed('Enter') || this.input.sysPressed('Space') ||
+        this.input.sysPressed('Escape') || this.input.sysPressed('KeyS')) {
+      audio.sfx('select');
+      this.go('title');
     }
   }
 
@@ -156,10 +189,16 @@ export class Game {
   }
 
   private updateIntro(): void {
-    if (this.stateT > 40 && (this.input.sysPressed('Enter') || this.input.sysPressed('Space'))) {
-      this.go('play');
+    // 任意一个动作键都能跳过开场，不要让人干等
+    if (this.stateT > 20) {
+      const p1 = this.input.pad1;
+      if (this.input.sysPressed('Enter') || this.input.sysPressed('Space') ||
+          p1.pressedPunch || p1.pressedKick || p1.pressedJump ||
+          p1.pressedSuper || p1.dx !== 0 || p1.dy !== 0) {
+        this.go('play');
+      }
     }
-    if (this.stateT > 260) this.go('play');
+    if (this.stateT > 600) this.go('play');
   }
 
   private disciplePrev = this.emptyPad();
@@ -191,7 +230,7 @@ export class Game {
       this.disciplePrev = p2;
     }
 
-    w.update(p1, p2);
+    if (!w.frozen) w.update(p1, p2);
     audio.playBgm(w.enemies.some((e) => e.isBoss) ? 'boss' : `stage${this.stageIdx + 1}`);
 
     if (w.result === 'dead') {
@@ -251,11 +290,14 @@ export class Game {
 
   render(): void {
     const ctx = this.ctx;
+    // 每帧重置变换：所有绘制代码继续用 256x240 的逻辑坐标
+    ctx.setTransform(RENDER_SCALE, 0, 0, RENDER_SCALE, 0, 0);
     ctx.fillStyle = '#0a0908';
     ctx.fillRect(0, 0, VIEW_W, VIEW_H);
 
     switch (this.state) {
       case 'title': this.renderTitle(); break;
+      case 'controls': this.renderControls(); break;
       case 'mode': this.renderMode(); break;
       case 'dojo': this.renderDojo(); break;
       case 'intro': this.renderIntro(); break;
@@ -302,28 +344,73 @@ export class Game {
     });
     drawFighter(ctx, fake2, { camX: 0 });
 
-    if (this.titleBlink % 70 < 44) {
-      text(ctx, 'PRESS ENTER', VIEW_W / 2, 216, { font: FONT, align: 'center', color: '#f0e8d8' });
+    // 明确的入口，别让人猜要按几次
+    if (this.titleBlink % 60 < 46) {
+      text(ctx, '按 ENTER 开始', VIEW_W / 2, 194, { font: FONT, align: 'center', color: '#ffffff' });
     }
-    text(ctx, 'WASD 移动  J 拳  K 脚  L 跳  Q 奥义', VIEW_W / 2, 230, { font: FONT_S, align: 'center', color: '#7a6a5a' });
+    ctx.fillStyle = 'rgba(255,255,255,0.045)';
+    ctx.fillRect(14, 212, VIEW_W - 28, 20);
+    text(ctx, '2 双人   3 道场   4 操作说明', VIEW_W / 2, 218, {
+      font: FONT_XS, align: 'center', color: '#9a8a78',
+    });
+  }
+
+  /** 操作说明页：把按键摊开写清楚 */
+  private renderControls(): void {
+    const ctx = this.ctx;
+    const W2 = VIEW_W;
+    this.drawDimBackdrop();
+    text(ctx, '操作说明', W2 / 2, 14, { font: FONT_L, align: 'center', color: '#ffd24a' });
+
+    const rows: [string, string][] = [
+      ['W A S D', '移动　　S / W 切换前后纵深'],
+      ['J', '拳（走进敌人身体 = 自动抓住他）'],
+      ['K', '脚'],
+      ['L', '跳　　贴着坑沿跳能过去'],
+      ['S + J / K', '上勾拳 / 回旋踢　（Lv2 解锁）'],
+      ['空中 + K', '飞踢　（Lv3 解锁）'],
+      ['抓住时 J / K', '抓发膝撞 / 过肩摔　（Lv4 解锁）'],
+      ['背后 + J', '霸王肩　（Lv6 解锁）'],
+      ['空中 + J', '旋风腿　（Lv7 解锁）'],
+      ['Q', '双截奥义（气满时）'],
+      ['ESC / P', '暂停'],
+    ];
+    rows.forEach((r, i) => {
+      const y = 38 + i * 13;
+      ctx.fillStyle = i % 2 === 0 ? 'rgba(255,255,255,0.035)' : 'transparent';
+      ctx.fillRect(10, y - 2, W2 - 20, 13);
+      text(ctx, r[0], 18, y, { font: FONT, color: '#7fd0ff' });
+      text(ctx, r[1], 92, y, { font: FONT_S, color: '#d8ccb8' });
+    });
+
+    text(ctx, '双人：P2 用 方向键 + .  ,  /', W2 / 2, 196, { font: FONT_S, align: 'center', color: '#a89880' });
+    if (this.titleBlink % 60 < 40) {
+      text(ctx, 'ENTER 返回', W2 / 2, 218, { font: FONT, align: 'center', color: '#8a7a6a' });
+    }
   }
 
   private renderMode(): void {
     this.drawDimBackdrop();
     const ctx = this.ctx;
-    text(ctx, '选择模式', VIEW_W / 2, 54, { font: FONT_L, align: 'center', color: '#ffd24a' });
+    text(ctx, '选择模式', VIEW_W / 2, 40, { font: FONT_L, align: 'center', color: '#ffd24a' });
 
     const items = ['单人游戏', '双人同屏 (P2: 方向键 + . / ,)', '道场 (养成 / 商店)'];
     items.forEach((s, i) => {
       const on = i === this.modeSel;
-      text(ctx, s, VIEW_W / 2, 100 + i * 26, {
+      if (on) {
+        ctx.fillStyle = 'rgba(232,65,58,0.16)';
+        ctx.fillRect(24, 84 + i * 24 - 3, VIEW_W - 48, 22);
+        ctx.fillStyle = '#e8413a';
+        ctx.fillRect(24, 84 + i * 24 - 3, 2, 22);
+      }
+      text(ctx, s, VIEW_W / 2, 84 + i * 24, {
         font: on ? FONT_L : FONT, align: 'center', color: on ? '#ffffff' : '#8a7a6a',
       });
     });
-    text(ctx, `铜钱 $${this.save.coins}    通关 ${this.save.clears} 次`, VIEW_W / 2, 196, {
+    text(ctx, `铜钱 $${this.save.coins}    通关 ${this.save.clears} 次`, VIEW_W / 2, 176, {
       font: FONT_S, align: 'center', color: '#a89880',
     });
-    text(ctx, 'W/S 选择  ENTER 确认  ESC 返回', VIEW_W / 2, 224, { font: FONT_S, align: 'center', color: '#6a5a4a' });
+    text(ctx, 'W/S 选择  ENTER 确认  ESC 返回', VIEW_W / 2, 214, { font: FONT_S, align: 'center', color: '#6a5a4a' });
   }
 
   private renderDojo(): void {
@@ -374,10 +461,45 @@ export class Game {
     drawBg(this.ctx, w.bg, 0, this.frame);
     drawVignette(this.ctx);
     const alpha = clamp(this.stateT / 18, 0, 1);
-    drawBanner(this.ctx, w.stage.name, w.stage.en, alpha);
-    drawDialogue(this.ctx, w.stage.intro, clamp((this.stateT - 20) / 20, 0, 1));
-    if (this.stateT > 40 && this.stateT % 60 < 40) {
-      text(this.ctx, 'ENTER 继续', VIEW_W / 2, 158, { font: FONT_S, align: 'center', color: '#cfc0a8' });
+    // 三块自上而下：横幅(80-146) / 剧情(150-186) / 操作表(190-228)
+    this.ctx.fillStyle = `rgba(8,6,10,${0.82 * alpha})`;
+    this.ctx.fillRect(0, 80, VIEW_W, 66);
+    this.ctx.fillStyle = `rgba(232,65,58,${alpha})`;
+    this.ctx.fillRect(0, 80, VIEW_W, 1.5);
+    this.ctx.fillRect(0, 144, VIEW_W, 1.5);
+    text(this.ctx, w.stage.name, VIEW_W / 2, 92, { font: FONT_L, align: 'center', color: '#f5efe0' });
+    text(this.ctx, w.stage.en, VIEW_W / 2, 116, { font: FONT_S, align: 'center', color: '#e8413a' });
+
+    this.ctx.save();
+    this.ctx.globalAlpha = clamp((this.stateT - 16) / 20, 0, 1);
+    drawDialogue(this.ctx, w.stage.intro, 1, 150);
+    this.ctx.restore();
+
+    this.ctx.save();
+    this.ctx.globalAlpha = clamp((this.stateT - 26) / 20, 0, 1);
+    const hk = 190;
+    this.ctx.fillStyle = 'rgba(6,5,8,0.88)';
+    this.ctx.fillRect(10, hk, VIEW_W - 20, 40);
+    this.ctx.strokeStyle = '#4a3f38';
+    this.ctx.lineWidth = 1;
+    this.ctx.strokeRect(10.5, hk + 0.5, VIEW_W - 21, 39);
+    const keys: [string, string][] = [
+      ['WASD', '移动'], ['S/W', '换纵深'], ['J', '拳'],
+      ['K', '脚'], ['L', '跳'], ['Q', '奥义'],
+    ];
+    keys.forEach((k, i) => {
+      const x = 18 + (i % 3) * 78;
+      const y = hk + 5 + Math.floor(i / 3) * 13;
+      text(this.ctx, k[0], x, y, { font: FONT_XS, color: '#7fd0ff' });
+      text(this.ctx, k[1], x + 30, y, { font: FONT_XS, color: '#c8bca8' });
+    });
+    text(this.ctx, '★ 走进敌人身体会自动抓住他', VIEW_W / 2, hk + 29, {
+      font: FONT_XS, align: 'center', color: '#ffd24a',
+    });
+    this.ctx.restore();
+
+    if (this.stateT > 20 && this.titleBlink % 50 < 36) {
+      text(this.ctx, '按任意键开始', VIEW_W / 2, 66, { font: FONT, align: 'center', color: '#ffffff' });
     }
   }
 
@@ -385,6 +507,16 @@ export class Game {
     const ctx = this.ctx;
     const w = this.world;
     if (!w) return;
+
+    // 屏幕震动：命中时整幅画面抖一下，冲击力全靠它
+    let shx = 0, shy = 0;
+    if (w.shake > 0) {
+      const a = w.shake;
+      shx = (Math.sin(w.frame * 2.1) + Math.sin(w.frame * 3.7)) * a * 0.5;
+      shy = (Math.cos(w.frame * 2.6) + Math.sin(w.frame * 4.3)) * a * 0.35;
+    }
+    ctx.save();
+    ctx.translate(Math.round(shx), Math.round(shy));
 
     drawBg(ctx, w.bg, w.camX, w.frame);
 
@@ -457,6 +589,14 @@ export class Game {
       }
     }
 
+    ctx.restore();
+
+    // 受击闪白：整屏压一层红，替代老式的硬边框
+    if (w.flash > 0.01) {
+      ctx.fillStyle = `rgba(255,60,50,${w.flash})`;
+      ctx.fillRect(0, 0, VIEW_W, VIEW_H);
+    }
+
     drawVignette(ctx);
 
     const lead = w.players[0]!;
@@ -471,7 +611,7 @@ export class Game {
     });
 
     if (lead.combo >= 2) {
-      drawCombo(ctx, lead.x - w.camX, lead.y - 54, lead.combo);
+      drawCombo(ctx, lead.x - w.camX, lead.y - 72, lead.combo);
     }
 
     const bt = w.bannerText;
@@ -481,6 +621,16 @@ export class Game {
       ctx.globalAlpha = a;
       text(ctx, bt, VIEW_W / 2, 62, { font: FONT_L, align: 'center', color: '#ffd24a' });
       ctx.restore();
+    }
+
+    // 前两关挂一条常驻按键提示，玩熟了自动消失
+    if (this.stageIdx === 0 && w.frame < 60 * 26) {
+      const a = w.frame < 60 * 22 ? 1 : 1 - (w.frame - 60 * 22) / (60 * 4);
+      this.ctx.save();
+      this.ctx.globalAlpha = Math.max(0, a);
+      text(this.ctx, 'WASD 移动  J 拳  K 脚  L 跳  ·  走进敌人身体会自动抓住他',
+        VIEW_W / 2, VIEW_H - 44, { font: FONT_XS, align: 'center', color: 'rgba(190,175,155,0.6)' });
+      this.ctx.restore();
     }
 
     if (this.state === 'pause') {

@@ -8,6 +8,11 @@
 /* ---------- 画布 ---------- */
 export const VIEW_W = 256;
 export const VIEW_H = 240;
+/**
+ * 渲染倍率。逻辑坐标不变（游戏手感零风险），但画布按倍率放大并开抗锯齿，
+ * 于是线条是"高清矢量"而不是"放大的马赛克"。
+ */
+export const RENDER_SCALE = 4;
 
 /* ---------- 纵深（"belt scroll" 双层纵深是双截龙的灵魂） ---------- */
 /**
@@ -33,15 +38,15 @@ export const HITSTUN_MAX = 20;
 /** 死亡后复活无敌帧 */
 export const INVULN_FRAMES = 48;
 /** 贴住敌人时自动进入抓取的距离 */
-export const GRAB_RANGE = 16;
+export const GRAB_RANGE = 20;
 export const GRAB_HOLD_MAX = 150;
 /** 攻击判定距离 */
-export const RANGE_PUNCH = 21;
-export const RANGE_KICK = 27;
-export const RANGE_JUMP_KICK = 31;
-export const RANGE_HEADBUTT = 20;
-export const RANGE_ELBOW = 19;
-export const RANGE_SPIN = 34;
+export const RANGE_PUNCH = 27;
+export const RANGE_KICK = 35;
+export const RANGE_JUMP_KICK = 40;
+export const RANGE_HEADBUTT = 25;
+export const RANGE_ELBOW = 24;
+export const RANGE_SPIN = 44;
 
 /** 投掷 */
 export const THROW_VX = 3.5;

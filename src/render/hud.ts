@@ -10,6 +10,7 @@ import { clamp } from '../core/math';
 import type { Player } from '../entities/Player';
 
 export const FONT = '11px ui-monospace, "SF Mono", Menlo, Consolas, monospace';
+export const FONT_XS = '8px ui-monospace, "SF Mono", Menlo, Consolas, monospace';
 export const FONT_S = '9px ui-monospace, "SF Mono", Menlo, Consolas, monospace';
 export const FONT_L = '16px ui-monospace, "SF Mono", Menlo, Consolas, monospace';
 export const FONT_XL = '26px ui-monospace, "SF Mono", Menlo, Consolas, monospace';
@@ -207,18 +208,19 @@ export function drawDialogue(
   ctx: CanvasRenderingContext2D,
   lines: string[],
   alpha: number,
+  topY?: number,
 ): void {
   if (alpha <= 0) return;
   ctx.save();
   ctx.globalAlpha = alpha;
-  const h = 16 + lines.length * 13;
-  const y = VIEW_H - h - 12;
+  const h = 12 + lines.length * 13;
+  const y = topY ?? VIEW_H - h - 12;
   ctx.fillStyle = 'rgba(6,5,8,0.86)';
   ctx.fillRect(16, y, VIEW_W - 32, h);
   ctx.strokeStyle = '#6a5a4a';
   ctx.lineWidth = 1;
   ctx.strokeRect(16.5, y + 0.5, VIEW_W - 33, h - 1);
-  lines.forEach((l, i) => text(ctx, l, 24, y + 7 + i * 13, { color: '#e8dcc8' }));
+  lines.forEach((l, i) => text(ctx, l, 24, y + 5 + i * 13, { color: '#e8dcc8' }));
   ctx.restore();
 }
 

@@ -4,7 +4,7 @@
  * 逻辑固定 60Hz（清版动作游戏的判定不能飘），渲染跟着 rAF 走。
  */
 
-import { VIEW_W, VIEW_H } from './core/constants';
+import { VIEW_W, VIEW_H, RENDER_SCALE } from './core/constants';
 import { audio } from './core/audio';
 import { Game } from './game/Game';
 
@@ -12,18 +12,18 @@ const canvas = document.getElementById('screen') as HTMLCanvasElement;
 const app = document.getElementById('app') as HTMLDivElement;
 const boot = document.getElementById('boot');
 
-canvas.width = VIEW_W;
-canvas.height = VIEW_H;
+canvas.width = VIEW_W * RENDER_SCALE;
+canvas.height = VIEW_H * RENDER_SCALE;
+canvas.style.aspectRatio = `${VIEW_W} / ${VIEW_H}`;
 
 function fit(): void {
-  const pad = 16;
+  const pad = 24;
   const availW = window.innerWidth - pad;
   const availH = window.innerHeight - pad;
-  // 整数倍缩放，像素不失真；空间不够时才降级到小数倍
-  let s = Math.min(availW / VIEW_W, availH / VIEW_H);
-  if (s >= 1) s = Math.max(1, Math.floor(s));
-  canvas.style.width = `${Math.round(VIEW_W * s)}px`;
-  canvas.style.height = `${Math.round(VIEW_H * s)}px`;
+  // 高清画布直接按可用空间缩放，不需要整数倍对齐
+  const s = Math.min(availW / canvas.width, availH / canvas.height);
+  canvas.style.width = `${Math.round(canvas.width * s)}px`;
+  canvas.style.height = `${Math.round(canvas.height * s)}px`;
 }
 fit();
 window.addEventListener('resize', fit);

@@ -43,8 +43,8 @@ export abstract class Fighter {
   /** 纵深档位 0..2 */
   band = 1;
   facing: 1 | -1 = 1;
-  w = 15;
-  h = 30;
+  w = 19;
+  h = 38;
   /** 体型缩放，渲染用 */
   scale = 1;
 

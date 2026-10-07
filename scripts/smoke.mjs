@@ -40,6 +40,17 @@ async function main() {
   page.on('pageerror', (e) => errors.push(String(e)));
   page.on('console', (m) => { if (m.type() === 'error') errors.push(m.text()); });
 
+  const assertPlayable = async (tag) => {
+    const before = await page.evaluate(() => Math.round(window.__dd.game.world?.player.x ?? -1));
+    await page.keyboard.down('KeyD');
+    await page.waitForTimeout(700);
+    await page.keyboard.up('KeyD');
+    const after = await page.evaluate(() => Math.round(window.__dd.game.world?.player.x ?? -1));
+    if (!(after > before + 10)) {
+      throw new Error(`${tag}: 玩家按 D 走不动（${before} -> ${after}）`);
+    }
+  };
+
   const frames = (n) =>
     page.evaluate((k) => {
       for (let i = 0; i < k; i++) window.__dd.game.update();
@@ -77,35 +88,19 @@ async function main() {
 
   // 标题 → 模式选择
   await page.keyboard.press('Enter');
-  await frames(2);
-  // 模式顺序：0 单人 / 1 双人 / 2 道场
-  await page.keyboard.press('KeyS');
-  await frames(2);            // 每次按键之间必须隔一帧，否则会被合并成一次
-  await page.keyboard.press('KeyS');
-  await frames(2);
-  await shot('02-mode');
-
-  await page.keyboard.press('Enter');
-  await frames(2);
-  await shot('03-dojo');
-
-  // 回模式选单人开局
-  await page.keyboard.press('Escape');
-  await frames(2);
-  await page.keyboard.press('KeyW');
-  await frames(2);
-  await page.keyboard.press('KeyW');
-  await frames(2);
-  await page.keyboard.press('Enter');
-  await frames(6);
-  await shot('04-intro');
-  if ((await page.evaluate(() => window.__dd.game.world?.has2P)) !== false) {
-    throw new Error('模式导航跑偏了：预期单人，实际进了双人');
+  await frames(3);
+  await shot('02-intro');
+  if ((await page.evaluate(() => window.__dd.game.state)) !== 'intro') {
+    throw new Error('标题按一次 ENTER 应该直接进入开场卡');
   }
 
-  await page.keyboard.press('Enter');
+  // 按任意键进战斗
+  await page.keyboard.press('KeyJ');
   await frames(20);
-  await shot('05-stage1');
+  await shot('03-stage1');
+  if ((await page.evaluate(() => window.__dd.game.state)) !== 'play') {
+    throw new Error('开场卡按任意键应该进入战斗');
+  }
 
   console.log('▶ 打第一波');
   await page.keyboard.down('KeyD');
@@ -113,6 +108,11 @@ async function main() {
   await page.keyboard.up('KeyD');
   for (let i = 0; i < 5; i++) { await page.keyboard.press('KeyJ'); await frames(10); }
   await shot('06-stage1-fight');
+
+  console.log('▶ 操作说明页');
+  await page.evaluate(() => window.__dd.game.go('controls'));
+  await frames(4);
+  await shot('05-controls');
 
   console.log('▶ 逐关截图');
   for (let s = 0; s < 4; s++) {
@@ -140,6 +140,22 @@ async function main() {
     await frames(90);
     await shot(`2${stage + 1}-boss-${name}`);
   }
+
+  console.log('▶ 真人式操作回归：走 / 换档 / 出招');
+  await page.evaluate(() => window.__dd.game.jumpTo(0, 3));
+  await page.waitForTimeout(300);
+  await assertPlayable('移动');
+  const b0 = await page.evaluate(() => window.__dd.game.world.player.band);
+  await page.keyboard.down('KeyS');
+  await page.waitForTimeout(500);
+  await page.keyboard.up('KeyS');
+  const b1 = await page.evaluate(() => window.__dd.game.world.player.band);
+  if (b1 === b0) throw new Error(`换纵深失败（band 一直是 ${b0}）`);
+  await page.keyboard.press('KeyJ');
+  await page.waitForTimeout(80);
+  const atk = await page.evaluate(() => window.__dd.game.world.player.atk?.def?.id ?? null);
+  if (!atk) throw new Error('按 J 没有出招');
+  console.log(`  ✅ 移动 / 换档(${b0}→${b1}) / 出招(${atk})`);
 
   console.log('▶ 气满奥义');
   await page.evaluate(() => window.__dd.game.jumpTo(0, 7));

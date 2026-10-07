@@ -69,6 +69,12 @@ export class World {
   pickups: Pickup[] = [];
   /** 命中特效 */
   sparks: { x: number; y: number; t: number; dir: number; size: number }[] = [];
+  /** 屏幕震动强度（衰减） */
+  shake = 0;
+  /** 命中定格：剩余定格帧数，期间整个画面几乎不动 */
+  hitstop = 0;
+  /** 全屏闪白强度 */
+  flash = 0;
 
   camX = 0;
   /** 镜头是否被锁住（清场中） */
@@ -294,6 +300,10 @@ export class World {
       x: target.x - target.facing * 3, y: target.y - target.h * 0.5,
       t: 8, dir: attacker.facing, size: 6 + dmg * 0.4,
     });
+    // 打击感三件套：定格 + 震动 + 闪白。少了任何一件都会"打起来像棉花"
+    this.hitstop = Math.max(this.hitstop, dmg >= 18 ? 5 : 3);
+    this.shake = Math.min(3.2, this.shake + dmg * 0.06);
+    if (target instanceof Player) this.flash = Math.min(0.42, this.flash + dmg * 0.012);
 
     if (attacker instanceof Player) {
       attacker.onLandedHit();
@@ -618,6 +628,14 @@ export class World {
   private updateSparks(): void {
     for (const s of this.sparks) s.t--;
     this.sparks = this.sparks.filter((s) => s.t > 0);
+    if (this.shake > 0) this.shake = Math.max(0, this.shake - 0.32);
+    if (this.flash > 0) this.flash = Math.max(0, this.flash - 0.05);
+    if (this.hitstop > 0) this.hitstop--;
+  }
+
+  /** 本帧是否处于定格（定格时所有逻辑暂停） */
+  get frozen(): boolean {
+    return this.hitstop > 0;
   }
 
   /* ---------------- 死亡处理 ---------------- */

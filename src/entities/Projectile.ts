@@ -36,11 +36,11 @@ export class Projectile {
 
   get damage(): number {
     switch (this.kind) {
-      case 'rock': return 9;
-      case 'barrel': return 15;
-      case 'knife': return 12;
-      case 'dynamite': return 26;
-      case 'bullet': return 20; // 原作里机枪擦到基本秒杀
+      case 'rock': return 12;
+      case 'barrel': return 19;
+      case 'knife': return 15;
+      case 'dynamite': return 30;
+      case 'bullet': return 24; // 原作里机枪擦到基本秒杀
     }
   }
 
