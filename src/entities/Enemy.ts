@@ -54,7 +54,7 @@ export class Enemy extends Fighter {
     this.pal = { ...def.pal };
     this.hair = def.hair;
     this.scale = def.scale;
-    this.h = Math.round(38 * def.scale);
+    this.h = Math.round(40 * def.scale);
     this.w = Math.round(19 * def.scale);
     this.hpMax = def.hp;
     this.hp = def.hp;

@@ -44,7 +44,7 @@ export abstract class Fighter {
   band = 1;
   facing: 1 | -1 = 1;
   w = 19;
-  h = 38;
+  h = 40;
   /** 体型缩放，渲染用 */
   scale = 1;
 

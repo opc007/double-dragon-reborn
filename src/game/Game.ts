@@ -39,6 +39,7 @@ export class Game {
   private titleBlink = 0;
   /** 结算滚动 */
   private tally = 0;
+  private muted = false;
 
   constructor(canvas: HTMLCanvasElement) {
     const ctx = canvas.getContext('2d', { alpha: false });
@@ -54,12 +55,38 @@ export class Game {
   private go(s: S): void {
     this.state = s;
     this.stateT = 0;
+    this.syncMusic();
+  }
+
+  /** 每个画面配各自的曲子。之前只有战斗有音乐，标题页是哑的。 */
+  private syncMusic(): void {
+    const map: Record<S, string> = {
+      title: 'title',
+      mode: 'title',
+      controls: 'title',
+      dojo: 'dojo',
+      intro: this.bgmForStage(),
+      play: this.bgmForStage(),
+      pause: this.bgmForStage(),
+      stageClear: 'victory',
+      victory: 'victory',
+      gameOver: 'gameover',
+    };
+    audio.playBgm(map[this.state]);
+  }
+
+  private bgmForStage(): string {
+    return this.stageIdx === 3 ? 'boss' : `stage${this.stageIdx + 1}`;
+  }
+
+  /** 开局就把标题曲挂上（初始状态不走 go()） */
+  primeAudio(): void {
+    this.syncMusic();
   }
 
   private startGame(): void {
     this.stageIdx = 0;
     this.tally = 0;
-    audio.playBgm('stage1');
     this.beginStage();
   }
 
@@ -115,6 +142,10 @@ export class Game {
 
   private updateTitle(): void {
     this.titleBlink++;
+    if (this.input.sysPressed('KeyM')) {
+      this.muted = !this.muted;
+      audio.setMuted(this.muted);
+    }
     const tap = (c: string) => this.input.sysPressed(c);
     // ENTER 直接开打。模式选择用数字键 2 / 3，不再挡在前面让人按三次
     if (tap('Enter') || tap('Space') || tap('KeyJ')) {
@@ -218,6 +249,7 @@ export class Game {
 
     if (this.input.sysPressed('Escape') || this.input.sysPressed('KeyP')) {
       this.go('pause');
+      audio.setMuted(true);
       return;
     }
 
@@ -231,7 +263,7 @@ export class Game {
     }
 
     if (!w.frozen) w.update(p1, p2);
-    audio.playBgm(w.enemies.some((e) => e.isBoss) ? 'boss' : `stage${this.stageIdx + 1}`);
+    audio.playBgm(w.enemies.some((e) => e.isBoss) ? 'boss' : this.bgmForStage());
 
     if (w.result === 'dead') {
       const ok = w.consumeLife();
@@ -253,7 +285,10 @@ export class Game {
   }
 
   private updatePause(): void {
-    if (this.input.sysPressed('Escape') || this.input.sysPressed('KeyP')) this.go('play');
+    if (this.input.sysPressed('Escape') || this.input.sysPressed('KeyP')) {
+      audio.setMuted(false);
+      this.go('play');
+    }
   }
 
   private updateStageClear(): void {
@@ -350,9 +385,8 @@ export class Game {
     }
     ctx.fillStyle = 'rgba(255,255,255,0.045)';
     ctx.fillRect(14, 212, VIEW_W - 28, 20);
-    text(ctx, '2 双人   3 道场   4 操作说明', VIEW_W / 2, 218, {
-      font: FONT_XS, align: 'center', color: '#9a8a78',
-    });
+    text(ctx, `2 双人   3 道场   4 操作说明   M ${this.muted ? '开声音' : '静音'}`,
+      VIEW_W / 2, 218, { font: FONT_XS, align: 'center', color: '#9a8a78' });
   }
 
   /** 操作说明页：把按键摊开写清楚 */

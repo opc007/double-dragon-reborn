@@ -14,54 +14,102 @@ interface Track {
   /** 16 个 step / 小节，0 = 休止，-1 = 延音 */
   bass: number[];
   lead: number[];
+  /** 和声垫（琶音），0 = 休止 */
+  harm?: number[];
   /** K=底鼓 S=军鼓 h=闭镲 .=休止 */
   drum: string;
   leadWave: Wave;
   bassWave: Wave;
+  /** 音量微调 */
+  vol?: number;
 }
 
+/**
+ * 曲库。全部现写，仓库里没有一个音频文件。
+ *
+ * 每首 16 个 step / 小节，循环播放。harm 是和声垫（琶音），
+ * 加这一层之后音乐才"厚"得起来——单主旋律听起来像手机闹铃。
+ */
 const TRACKS: Record<string, Track> = {
+  /** 标题：深沉、带点威胁感，让人还没开打就紧张 */
   title: {
-    bpm: 100,
-    bass: [45, 0, 45, 0, 45, 0, 45, 0, 43, 0, 43, 0, 43, 0, 43, 0],
-    lead: [69, 0, 72, 0, 76, 0, 72, 0, 74, 0, 71, 0, 69, 0, 0, 0],
+    bpm: 92,
+    bass: [33, 0, 33, 0, 33, 0, 40, 0, 36, 0, 36, 0, 43, 0, 40, 0],
+    lead: [69, 0, 0, 72, 0, 76, 0, 0, 74, 0, 0, 71, 0, 69, 0, 0],
+    harm: [57, 0, 0, 60, 0, 64, 0, 0, 60, 0, 0, 64, 0, 67, 0, 0],
     drum: 'K...h...S...h...',
     leadWave: 'square', bassWave: 'triangle',
   },
+  /** 道场：安静、放松，是"休息一下"的地方 */
+  dojo: {
+    bpm: 78,
+    bass: [45, 0, 0, 0, 48, 0, 0, 0, 43, 0, 0, 0, 40, 0, 0, 0],
+    lead: [72, 0, 0, 0, 76, 0, 0, 0, 79, 0, 0, 0, 76, 0, 0, 0],
+    harm: [60, 0, 0, 0, 64, 0, 0, 0, 67, 0, 0, 0, 64, 0, 0, 0],
+    drum: 'K.......h.......',
+    leadWave: 'triangle', bassWave: 'sine',
+  },
+  /** 城市：明快、往前冲 */
   stage1: {
-    bpm: 152,
+    bpm: 150,
     bass: [40, 40, 0, 40, 40, 0, 43, 0, 45, 0, 43, 0, 40, 0, 38, 0],
     lead: [64, 0, 67, 0, 71, 0, 67, 0, 69, 0, 67, 0, 64, 0, 62, 0],
+    harm: [52, 0, 0, 55, 0, 0, 59, 0, 57, 0, 0, 55, 0, 0, 52, 0],
     drum: 'K..hK..hS..hK.hh',
     leadWave: 'square', bassWave: 'sawtooth',
   },
+  /** 工厂：机械感、更密的鼓 */
   stage2: {
     bpm: 158,
     bass: [45, 0, 45, 45, 0, 45, 47, 0, 45, 0, 45, 45, 0, 45, 43, 0],
-    lead: [69, 0, 72, 74, 0, 72, 69, 0, 67, 0, 69, 72, 0, 69, 67, 0],
+    lead: [69, 0, 72, 74, 0, 72, 69, 0, 67, 0, 69, 72, 0, 74, 76, 0],
+    harm: [57, 0, 60, 0, 0, 64, 0, 0, 57, 0, 60, 0, 0, 67, 0, 0],
     drum: 'K.hhK.hhS.hhK.hh',
     leadWave: 'square', bassWave: 'square',
   },
+  /** 林道：沉、慢，制造"树林里不对劲"的感觉 */
   stage3: {
-    bpm: 146,
-    bass: [38, 38, 38, 0, 41, 0, 43, 0, 38, 38, 38, 0, 36, 0, 38, 0],
+    bpm: 142,
+    bass: [38, 0, 38, 0, 41, 0, 43, 0, 38, 0, 38, 0, 36, 0, 38, 0],
     lead: [62, 0, 65, 0, 69, 0, 65, 0, 67, 0, 65, 0, 62, 0, 60, 0],
-    drum: 'K..h..hS..h..h',
+    harm: [50, 0, 0, 53, 0, 0, 57, 0, 55, 0, 0, 53, 0, 0, 50, 0],
+    drum: 'K..h..hS..h..hS',
     leadWave: 'triangle', bassWave: 'sawtooth',
   },
+  /** 基地：压迫、往下走 */
   stage4: {
-    bpm: 162,
+    bpm: 160,
     bass: [36, 36, 0, 36, 36, 0, 36, 36, 39, 0, 39, 0, 41, 0, 39, 0],
     lead: [60, 0, 63, 0, 60, 0, 58, 0, 60, 0, 63, 0, 66, 0, 63, 0],
+    harm: [48, 0, 0, 51, 0, 0, 55, 0, 51, 0, 0, 55, 0, 0, 48, 0],
     drum: 'KhKhK.hS.hKhKhS.',
-    leadWave: 'square', bassWave: 'sawtooth',
+    leadWave: 'sawtooth', bassWave: 'sawtooth',
   },
+  /** BOSS：最快最密，压得人喘不过气 */
   boss: {
-    bpm: 172,
+    bpm: 176,
     bass: [33, 33, 33, 33, 33, 33, 33, 33, 34, 34, 34, 34, 35, 35, 36, 36],
     lead: [69, 70, 72, 70, 69, 67, 68, 70, 72, 73, 75, 73, 72, 70, 69, 68],
+    harm: [57, 0, 60, 0, 57, 0, 60, 0, 58, 0, 61, 0, 58, 0, 61, 0],
     drum: 'K.hKh.hKS.hKh.hK',
     leadWave: 'sawtooth', bassWave: 'square',
+  },
+  /** 通关：明亮的上行 */
+  victory: {
+    bpm: 120,
+    bass: [48, 0, 0, 0, 53, 0, 0, 0, 55, 0, 0, 0, 57, 0, 0, 0],
+    lead: [72, 0, 76, 0, 79, 0, 84, 0, 81, 0, 79, 0, 76, 0, 79, 0],
+    harm: [64, 0, 0, 67, 0, 0, 71, 0, 72, 0, 0, 76, 0, 0, 79, 0],
+    drum: 'K...h...S...h..h',
+    leadWave: 'square', bassWave: 'triangle',
+  },
+  /** Game Over：下行 */
+  gameover: {
+    bpm: 70,
+    bass: [45, 0, 0, 0, 44, 0, 0, 0, 43, 0, 0, 0, 41, 0, 0, 0],
+    lead: [69, 0, 0, 0, 67, 0, 0, 0, 65, 0, 0, 0, 64, 0, 0, 0],
+    drum: 'K.......h.......',
+    leadWave: 'triangle', bassWave: 'sine',
   },
 };
 
@@ -83,8 +131,8 @@ export class AudioEngine {
   private cur: Track | null = null;
   private curName = '';
 
-  sfxVolume = 0.5;
-  bgmVolume = 0.34;
+  sfxVolume = 0.62;
+  bgmVolume = 0.5;
   muted = false;
 
   /** 浏览器要求首次交互后才能出声 */
@@ -100,7 +148,7 @@ export class AudioEngine {
 
     this.ctx = new AC();
     this.master = this.ctx.createGain();
-    this.master.gain.value = 0.9;
+    this.master.gain.value = 1.0;
     this.master.connect(this.ctx.destination);
 
     this.sfxGain = this.ctx.createGain();
@@ -124,7 +172,7 @@ export class AudioEngine {
   setMuted(m: boolean): void {
     this.muted = m;
     if (this.master && this.ctx) {
-      this.master.gain.setTargetAtTime(m ? 0 : 0.9, this.ctx.currentTime, 0.02);
+      this.master.gain.setTargetAtTime(m ? 0 : 1.0, this.ctx.currentTime, 0.02);
     }
   }
 
@@ -285,20 +333,24 @@ export class AudioEngine {
 
     const bn = tr.bass[i] ?? 0;
     if (bn > 0) {
-      this.tone({ type: tr.bassWave, f0: midi(bn), dur: spb * 1.7, vol: 0.17, t0: t, dest: this.bgmGain });
+      this.tone({ type: tr.bassWave, f0: midi(bn), dur: spb * 1.7, vol: 0.26, t0: t, dest: this.bgmGain });
     }
     const ln = tr.lead[i] ?? 0;
     if (ln > 0) {
-      this.tone({ type: tr.leadWave, f0: midi(ln), dur: spb * 1.45, vol: 0.075, t0: t, dest: this.bgmGain });
+      this.tone({ type: tr.leadWave, f0: midi(ln), dur: spb * 1.45, vol: 0.15, t0: t, dest: this.bgmGain });
+    }
+    const hn = tr.harm?.[i] ?? 0;
+    if (hn > 0) {
+      this.tone({ type: 'square', f0: midi(hn), dur: spb * 2.6, vol: 0.045, t0: t, dest: this.bgmGain });
     }
 
     const d = tr.drum[i] ?? '.';
     if (d === 'K') {
-      this.tone({ type: 'sine', f0: 150, f1: 44, dur: 0.13, vol: 0.36, t0: t, dest: this.bgmGain });
+      this.tone({ type: 'sine', f0: 150, f1: 44, dur: 0.13, vol: 0.42, t0: t, dest: this.bgmGain });
     } else if (d === 'S') {
-      this.noise({ dur: 0.12, vol: 0.18, f0: 1900, f1: 800, q: 0.7, t0: t, dest: this.bgmGain });
+      this.noise({ dur: 0.12, vol: 0.24, f0: 1900, f1: 800, q: 0.7, t0: t, dest: this.bgmGain });
     } else if (d === 'h') {
-      this.noise({ dur: 0.032, vol: 0.06, f0: 7800, q: 1.4, t0: t, dest: this.bgmGain });
+      this.noise({ dur: 0.032, vol: 0.09, f0: 7800, q: 1.4, t0: t, dest: this.bgmGain });
     }
   }
 
