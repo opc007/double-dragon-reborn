@@ -209,7 +209,7 @@ window.addEventListener('mousedown', dismiss);
         f.stateT = st === 'attack' ? 6 : 0;
         f.anim = 10 + row * 3;
         // 摆出招的姿态必须挂 atk，poseOf 靠它取招式参数
-        f.atk = { def: MOVES.punch, isMove: true, isSuper: false, hit: new Set(), fx: 0, fy: 0, dir: 1, tick: 0 };
+        f.atk = { def: MOVES.punch, isMove: true, isSuper: false, hit: new Set(), fx: 0, fy: 0, dir: 1, tick: 0, maxHits: 1 };
         ctx.save();
         ctx.translate(col * 150 + 34, row * CELL_H + CELL_H - 6);
         drawFighter(ctx, f, { camX: 0 });

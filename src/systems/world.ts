@@ -258,8 +258,7 @@ export class World {
       const atk = a.atk;
       if (!atk) continue;
       const d = atk.def;
-      // active 帧才判定
-      if (a.stateT < d.startup || a.stateT > d.startup + d.active) continue;
+      if (!this.inHitWindow(a, atk)) continue;
 
       const box = a.attackBox();
       if (!box) continue;
@@ -273,13 +272,37 @@ export class World {
 
         // 跨深度带打不到 —— 双截龙的核心规则
         if (!canReach(a.band, b.band, d.range, a.airborne)) continue;
-
         if (!rectHit(box, boxOf(b))) continue;
 
         atk.hit.add(b);
         this.applyHit(a, b, atk.isSuper ? 1.5 : 1, atk);
       }
     }
+  }
+
+  /**
+   * 判断这一帧是否处于挥击判定窗口内。
+   *
+   * 单段招式就是 startup..startup+active 一段直线。
+   * 多段招式（双截连打）把 active 切成若干小窗口，每窗口只判一次，
+   * 段与段之间清空"已命中"名单 —— 于是同一个敌人能被连打三下。
+   */
+  private inHitWindow(a: Fighter, atk: NonNullable<Fighter['atk']>): boolean {
+    const d = atk.def;
+    const hits = Math.max(1, atk.maxHits);
+    const t = a.stateT - d.startup;
+    if (t < 0 || t > d.active) return false;
+    if (hits <= 1) return true;
+
+    const seg = Math.ceil(d.active / hits);
+    const window = Math.max(2, seg - 2);
+    const segIdx = Math.floor(t / seg);
+    // 换段了：清空已命中名单，让这一段能重新打中同一个目标
+    if (segIdx !== atk.tick) {
+      atk.tick = segIdx;
+      atk.hit.clear();
+    }
+    return t % seg < window;
   }
 
   private applyHit(

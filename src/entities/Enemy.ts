@@ -224,7 +224,7 @@ export class Enemy extends Fighter {
     const atk: ActiveAttack = {
       def: w ?? { ...WEAPONS.fist, range: this.def.reach, damage: this.def.damage, startup: 8, active: 4, recover: 14 },
       isMove: false, isSuper: false, hit: new Set(),
-      fx: this.x, fy: this.y, dir, tick: 0,
+      fx: this.x, fy: this.y, dir, tick: 0, maxHits: 1,
     };
     this.atk = atk;
     this.pendingDamage = w ? w.damage : this.def.damage;

@@ -29,8 +29,10 @@ export interface ActiveAttack {
   fx: number;
   fy: number;
   dir: 1 | -1;
-  /** 多段招式（骑马掌掴 / 旋风腿）的当前段数 */
+  /** 多段招式（双截连打 / 旋风腿）的当前段数 */
   tick: number;
+  /** 总段数，1 = 单段 */
+  maxHits: number;
 }
 
 export abstract class Fighter {
@@ -70,6 +72,8 @@ export abstract class Fighter {
   grabTarget: Fighter | null = null;
   grabbedBy: Fighter | null = null;
   grabT = 0;
+  /** 抓取最长持续帧数，超时自动挣脱 */
+  grabMax = 150;
   /** 被抓住/被抓时下一帧要施加的投掷速度 */
   throwFrom: { vx: number; vy: number } | null = null;
 
@@ -185,6 +189,7 @@ export abstract class Fighter {
   }
 
   startGrab(target: Fighter): void {
+    this.grabMax = 80;          // 玩家抓人：约 1.3 秒后自动脱手，避免被抱住就动不了
     this.grabTarget = target;
     target.grabbedBy = this;
     target.setState('grabbed');
@@ -287,9 +292,10 @@ export abstract class Fighter {
 
   protected onLand(): void {}
 
-  /** 被抓住的人挣扎太久会自己挣脱 */
+  /** 被抓住的人挣扎太久会自己挣脱。
+   *  这个上限必须短：抓取是有控制效果的，但不能变成"被人抱住就动不了"。 */
   tickGrabBreak(): void {
-    if (this.state === 'grabbed' && this.grabT > 150) {
+    if (this.state === 'grabbed' && this.grabT > this.grabMax) {
       this.grabbedBy?.releaseGrab();
     }
   }

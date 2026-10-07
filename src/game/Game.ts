@@ -396,30 +396,38 @@ export class Game {
     this.drawDimBackdrop();
     text(ctx, '操作说明', W2 / 2, 14, { font: FONT_L, align: 'center', color: '#ffd24a' });
 
+    // 大招单独高亮：这是最该被记住的一条
+    ctx.fillStyle = 'rgba(232,65,58,0.14)';
+    ctx.fillRect(10, 32, W2 - 20, 20);
+    ctx.fillStyle = '#e8413a';
+    ctx.fillRect(10, 32, 2, 20);
+    text(ctx, 'J + K', 20, 38, { font: FONT_L, color: '#ffd24a' });
+    text(ctx, '双截连打（三段打击）', 92, 40, { font: FONT, color: '#fff0e0' });
+
     const rows: [string, string][] = [
+      ['J', '拳 —— 按 J 就是拳，永远不会变成别的'],
+      ['K', '脚 —— 按 K 就是脚'],
       ['W A S D', '移动　　S / W 切换前后纵深'],
-      ['J', '拳（走进敌人身体 = 自动抓住他）'],
-      ['K', '脚'],
       ['L', '跳　　贴着坑沿跳能过去'],
-      ['S + J / K', '上勾拳 / 回旋踢　（Lv2 解锁）'],
-      ['空中 + K', '飞踢　（Lv3 解锁）'],
-      ['抓住时 J / K', '抓发膝撞 / 过肩摔　（Lv4 解锁）'],
-      ['背后 + J', '霸王肩　（Lv6 解锁）'],
-      ['空中 + J', '旋风腿　（Lv7 解锁）'],
+      ['↓ + J / K', '上勾拳 / 回旋踢　（Lv2）'],
+      ['空中 + K', '飞踢　（Lv3）'],
+      ['背后 + J', '霸王肩　（Lv6）'],
+      ['空中 + J', '旋风腿　（Lv7）'],
       ['Q', '双截奥义（气满时）'],
+      ['走进去', '贴近敌人会自动抓住他，可以拖着他走'],
       ['ESC / P', '暂停'],
     ];
     rows.forEach((r, i) => {
-      const y = 38 + i * 13;
-      ctx.fillStyle = i % 2 === 0 ? 'rgba(255,255,255,0.035)' : 'transparent';
+      const y = 58 + i * 13;
+      ctx.fillStyle = i % 2 === 0 ? 'rgba(255,255,255,0.03)' : 'transparent';
       ctx.fillRect(10, y - 2, W2 - 20, 13);
-      text(ctx, r[0], 18, y, { font: FONT, color: '#7fd0ff' });
-      text(ctx, r[1], 92, y, { font: FONT_S, color: '#d8ccb8' });
+      text(ctx, r[0], 20, y, { font: FONT_XS, color: '#7fd0ff' });
+      text(ctx, r[1], 84, y, { font: FONT_XS, color: '#d8ccb8' });
     });
 
-    text(ctx, '双人：P2 用 方向键 + .  ,  /', W2 / 2, 196, { font: FONT_S, align: 'center', color: '#a89880' });
+    text(ctx, '双人：P2 用 方向键 + .  ,  /', W2 / 2, 210, { font: FONT_XS, align: 'center', color: '#a89880' });
     if (this.titleBlink % 60 < 40) {
-      text(ctx, 'ENTER 返回', W2 / 2, 218, { font: FONT, align: 'center', color: '#8a7a6a' });
+      text(ctx, 'ENTER 返回', W2 / 2, 226, { font: FONT_XS, align: 'center', color: '#8a7a6a' });
     }
   }
 
@@ -518,16 +526,16 @@ export class Game {
     this.ctx.lineWidth = 1;
     this.ctx.strokeRect(10.5, hk + 0.5, VIEW_W - 21, 39);
     const keys: [string, string][] = [
-      ['WASD', '移动'], ['S/W', '换纵深'], ['J', '拳'],
-      ['K', '脚'], ['L', '跳'], ['Q', '奥义'],
+      ['WASD', '移动'], ['S/W', '换纵深'], ['L', '跳'],
+      ['J', '拳'], ['K', '脚'], ['J+K', '大招'],
     ];
     keys.forEach((k, i) => {
       const x = 18 + (i % 3) * 78;
       const y = hk + 5 + Math.floor(i / 3) * 13;
-      text(this.ctx, k[0], x, y, { font: FONT_XS, color: '#7fd0ff' });
+      text(this.ctx, k[0], x, y, { font: FONT_XS, color: i === 5 ? '#ffd24a' : '#7fd0ff' });
       text(this.ctx, k[1], x + 30, y, { font: FONT_XS, color: '#c8bca8' });
     });
-    text(this.ctx, '★ 走进敌人身体会自动抓住他', VIEW_W / 2, hk + 29, {
+    text(this.ctx, '★ 拳就是拳、脚就是脚，同时按才是大招', VIEW_W / 2, hk + 29, {
       font: FONT_XS, align: 'center', color: '#ffd24a',
     });
     this.ctx.restore();
@@ -662,7 +670,7 @@ export class Game {
       const a = w.frame < 60 * 22 ? 1 : 1 - (w.frame - 60 * 22) / (60 * 4);
       this.ctx.save();
       this.ctx.globalAlpha = Math.max(0, a);
-      text(this.ctx, 'WASD 移动  J 拳  K 脚  L 跳  ·  走进敌人身体会自动抓住他',
+      text(this.ctx, 'J 拳　K 脚　J+K 大招　L 跳　·　走进敌人身体会自动抓住他',
         VIEW_W / 2, VIEW_H - 44, { font: FONT_XS, align: 'center', color: 'rgba(190,175,155,0.6)' });
       this.ctx.restore();
     }

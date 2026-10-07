@@ -34,7 +34,7 @@ export class Player extends Fighter {
   coins = 0;
   combo = 0;
   comboT = 0;
-  private comboNext: MoveId = 'punch';
+
 
   /* ---- 武器 ---- */
   weapon: WeaponId = 'fist';
@@ -63,9 +63,23 @@ export class Player extends Fighter {
   }
 
   /** 按当前等级和解锁的招式表，决定这次按键该出什么招 */
+  /**
+   * 招式选择 —— 规则必须一眼能记住：
+   *
+   *   J        永远出拳
+   *   K        永远出腿
+   *   J + K    大招（双截连打）
+   *   ↓+J / ↓+K   上勾拳 / 回旋踢
+   *   空中 + K 飞踢
+   *
+   * 之前这里做过"拳脚自动交替"的连段逻辑，玩家按 J 出拳、按 K 出腿
+   * 结果系统自己给他换成另一个动作 —— 完全违反直觉，已删除。
+   */
   private pickMove(pad: PadState): MoveId | null {
+    // 拳脚同按 = 大招。优先级最高，且不要求等级。
+    if (pad.punch && pad.kick) return 'combo';
+
     if (this.airborne) {
-      // 空中：Lv7 解锁旋风腿，否则是普通跳拳
       if (pad.punch && this.level >= 7) return 'spinKick';
       if (pad.kick && this.level >= 3) return 'jumpKick';
       if (pad.punch) return 'punch';
@@ -73,12 +87,11 @@ export class Player extends Fighter {
       return null;
     }
 
-    // 蹲方向 + 拳 = 上勾拳，+ 脚 = 回旋踢
+    // 蹲方向 + 拳 / 脚
     if (pad.down && pad.punch && this.level >= 2) return 'uppercut';
     if (pad.down && pad.kick && this.level >= 2) return 'roundhouse';
 
-    // 连段：拳→脚→拳 循环，比单按多一点点收益
-    if (pad.punch) return this.level >= 1 ? (this.comboNext === 'punch' ? 'punch' : this.comboNext) : null;
+    if (pad.punch) return 'punch';
     if (pad.kick) return 'kick';
     return null;
   }
@@ -96,6 +109,7 @@ export class Player extends Fighter {
       fy: this.y,
       dir: this.facing,
       tick: 0,
+      maxHits: def.hits ?? 1,
     };
     this.atk = a;
     this.pendingDamage = Math.round((def.damage + lvBonus) * dmgScale * (isSuper ? 1 : 1));
@@ -107,7 +121,7 @@ export class Player extends Fighter {
   private startWeapon(w: WeaponDef): void {
     this.atk = {
       def: w, isMove: false, isSuper: false, hit: new Set(),
-      fx: this.x, fy: this.y, dir: this.facing, tick: 0,
+      fx: this.x, fy: this.y, dir: this.facing, tick: 0, maxHits: 1,
     };
     this.pendingDamage = Math.round(w.damage * (1 + this.stats.power / 100));
     this.setState('attack');
@@ -125,7 +139,7 @@ export class Player extends Fighter {
 
     if (this.comboT > 0) {
       this.comboT--;
-      if (this.comboT === 0) { this.combo = 0; this.comboNext = 'punch'; }
+      if (this.comboT === 0) this.combo = 0;
     }
     if (this.respawnInv > 0) this.respawnInv--;
 
@@ -192,8 +206,9 @@ export class Player extends Fighter {
       audio.sfx('jump');
     }
 
-    // 走路撞进敌人身体 = 抓取（原作核心操作）
-    if (!this.airborne && this.vx !== 0 && this.atk === null) {
+    // 走进敌人身体 = 抓取（原作核心操作）。
+    // 但手里已经有人时不再重复抓——否则贴着两三个人会锁死动不了。
+    if (!this.airborne && this.vx !== 0 && this.atk === null && !this.grabTarget) {
       const tgt = this.findGrabTarget(ctx.enemies);
       if (tgt) this.startGrab(tgt);
     }
@@ -262,9 +277,6 @@ export class Player extends Fighter {
     const mv = this.pickMove(pad);
     if (mv) {
       this.startMove(mv);
-      // 拳/脚交替，连段收益递增
-      if (mv === 'punch') this.comboNext = 'kick';
-      else if (mv === 'kick') this.comboNext = 'punch';
     }
   }
 
@@ -284,9 +296,11 @@ export class Player extends Fighter {
     const t = this.grabTarget;
     if (!t || !t.alive) { this.releaseGrab(); return; }
 
-    // 挣脱
+    // 往反方向推 = 松手（原作里可以拖着人走，但想脱身往回一推就行）
     if (pad.dx !== 0 && sign(pad.dx) !== this.facing) { this.releaseGrab(); return; }
     if (pad.pressedJump) { this.releaseGrab(); return; }
+    // 同方向推 = 拖着人一起走。不能完全锁死，否则贴上敌人就动不了。
+    if (pad.dx === this.facing) this.vx = PLAYER_SPEED * pad.dx * 0.55;
 
     // 过肩摔（Lv4）
     if (this.level >= 4 && pad.pressedKick) {
