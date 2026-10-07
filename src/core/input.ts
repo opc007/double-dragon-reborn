@@ -51,7 +51,13 @@ export class Input {
   private readonly vpad1: PadState = BLANK();
   private readonly vpad2: PadState = BLANK();
   private readonly down = new Set<string>();
-  private readonly pressedThisFrame = new Set<string>();
+  /**
+   * 本帧内"曾经按下过"的键。
+   * 为什么不能只看 down：一次极短的敲击（keydown 和 keyup 落在同一帧之间）
+   * 会被 down 的增删完全抹掉，按键等于从未发生过。真人手速通常有 50ms 以上，
+   * 但掉帧或低配机器上会漏输入，所以边沿必须单独锁存到帧末。
+   */
+  private readonly edge = new Set<string>();
 
   /** 全局键边沿 */
   private readonly sysDown = new Set<string>();
@@ -74,7 +80,7 @@ export class Input {
     }
     if (e.repeat) return;
     this.down.add(e.code);
-    this.pressedThisFrame.add(e.code);
+    this.edge.add(e.code);
     this.sysDown.add(e.code);
     this.sysPressedSet.add(e.code);
   };
@@ -107,11 +113,6 @@ export class Input {
   }
 
   private apply(pad: PadState, vpad: PadState, map: KeyMap): void {
-    const prevPunch = pad.punch;
-    const prevKick = pad.kick;
-    const prevJump = pad.jump;
-    const prevSuper = pad.superBtn;
-
     for (const k in map) {
       const slot = map[k]!;
       if (slot === 'dx' || slot === 'dy') continue;
@@ -121,10 +122,18 @@ export class Input {
       if (vpad[k]) (pad[k] as boolean) = true;
     }
 
-    pad.pressedPunch = pad.punch && !prevPunch;
-    pad.pressedKick = pad.kick && !prevKick;
-    pad.pressedJump = pad.jump && !prevJump;
-    pad.pressedSuper = pad.superBtn && !prevSuper;
+    // 边沿：从 edge 锁存集合取，而不是比较上一帧的 bool。
+    // 这样"按下又松开"发生在同一帧内时依然算一次有效按下。
+    const tapped = (slot: keyof PadState): boolean => {
+      for (const k in map) {
+        if (map[k] === slot && this.edge.has(k)) return true;
+      }
+      return false;
+    };
+    pad.pressedPunch = tapped('punch');
+    pad.pressedKick = tapped('kick');
+    pad.pressedJump = tapped('jump');
+    pad.pressedSuper = tapped('superBtn');
 
     pad.dx = (pad.right ? 1 : 0) - (pad.left ? 1 : 0);
     pad.dy = (pad.down ? 1 : 0) - (pad.up ? 1 : 0);
@@ -138,7 +147,7 @@ export class Input {
 
   /** 每帧结尾调用，清理边沿 */
   endFrame(): void {
-    this.pressedThisFrame.clear();
+    this.edge.clear();
     this.sysPressedSet.clear();
   }
 }
