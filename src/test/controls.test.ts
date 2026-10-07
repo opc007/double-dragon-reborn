@@ -12,7 +12,7 @@ import { describe, it, expect } from 'vitest';
 import { Player } from '../entities/Player';
 import { Enemy } from '../entities/Enemy';
 import { World } from '../systems/world';
-import { defaultSave } from '../systems/dojo';
+import { defaultSave, statsOf } from '../systems/dojo';
 import { MOVES } from '../data/moves';
 import type { PadState } from '../core/input';
 
@@ -24,7 +24,7 @@ const pad = (o: Partial<PadState> = {}): PadState => ({
   ...o,
 });
 
-const st = defaultSave();
+const st = statsOf(defaultSave());
 
 function newPlayer(level = 1): Player {
   const p = new Player(st, 3);
