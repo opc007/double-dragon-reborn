@@ -69,16 +69,32 @@ function mountTouchControls(root: HTMLElement): void {
   `;
   root.appendChild(wrap);
 
+  // 用 pointer 事件统一鼠标/触摸，并且做"防滑出"处理：
+  // 手指按住后滑出按钮、或被系统打断，pointerup 不在按钮上，
+  // 就会留下一个永远按着的幽灵键 —— 表现为"人物一直在走但按任何键都没用"。
   const bind = (el: HTMLElement, key: string): void => {
-    const on = (e: Event): void => { e.preventDefault(); input.setVirtual(false, key as never, true); };
-    const off = (e: Event): void => { e.preventDefault(); input.setVirtual(false, key as never, false); };
-    el.addEventListener('touchstart', on, { passive: false });
-    el.addEventListener('touchend', off, { passive: false });
-    el.addEventListener('touchcancel', off, { passive: false });
-    el.addEventListener('mousedown', on);
-    el.addEventListener('mouseup', off);
-    el.addEventListener('mouseleave', off);
+    const on = (e: PointerEvent): void => {
+      e.preventDefault();
+      el.setPointerCapture?.(e.pointerId);
+      input.setVirtual(false, key as never, true);
+    };
+    const off = (e: PointerEvent): void => {
+      e.preventDefault();
+      input.setVirtual(false, key as never, false);
+    };
+    el.addEventListener('pointerdown', on);
+    el.addEventListener('pointerup', off);
+    el.addEventListener('pointercancel', off);
+    el.addEventListener('lostpointercapture', off);
+    el.addEventListener('contextmenu', (e) => e.preventDefault());
   };
+  // 兜底：任何一根手指抬起 / 窗口失焦，虚拟键全部松开
+  const panicRelease = (): void => input.releaseVirtual();
+  window.addEventListener('pointerup', panicRelease);
+  window.addEventListener('pointercancel', panicRelease);
+  window.addEventListener('blur', panicRelease);
+  document.addEventListener('visibilitychange', () => { if (document.hidden) panicRelease(); });
+
   wrap.querySelectorAll<HTMLElement>('[data-k]').forEach((el) => {
     const k = el.dataset.k!;
     if (k === 'up' || k === 'down' || k === 'left' || k === 'right' || k === 'punch' || k === 'kick' || k === 'jump' || k === 'superBtn') {

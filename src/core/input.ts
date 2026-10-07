@@ -31,6 +31,21 @@ const BLANK = (): PadState => ({
 
 type KeyMap = Record<string, keyof PadState | 'dx' | 'dy'>;
 
+const ACTIONS = ['up', 'down', 'left', 'right', 'punch', 'kick', 'jump', 'superBtn'] as const;
+
+/**
+ * 单轴方向裁决。
+ * neg = 负方向键（左 / 上），pos = 正方向键（右 / 下）。
+ * 两个方向同时按住时取"最后按下的那个"，而不是相加成 0 ——
+ * 否则玩家会看到"人物一直在动但完全操作不了"。
+ */
+function resolveAxis(neg: boolean, pos: boolean, orderNeg: number, orderPos: number): number {
+  if (neg && !pos) return -1;
+  if (pos && !neg) return 1;
+  if (!neg && !pos) return 0;
+  return orderNeg > orderPos ? -1 : 1;
+}
+
 /** P1：WASD + J K L Q（右手 JKL，经典 FC 手感） */
 const P1_MAP: KeyMap = {
   KeyW: 'up', KeyS: 'down', KeyA: 'left', KeyD: 'right',
@@ -58,6 +73,10 @@ export class Input {
    * 但掉帧或低配机器上会漏输入，所以边沿必须单独锁存到帧末。
    */
   private readonly edge = new Set<string>();
+  /** 每个键的按下次序。左右同时按住时用"最后按的那个"，
+   *  否则 dx 会算成 0 —— 玩家表现为"动画在动但完全操作不了"。 */
+  private readonly keyOrder = new Map<string, number>();
+  private orderSeq = 0;
 
   /** 全局键边沿 */
   private readonly sysDown = new Set<string>();
@@ -67,6 +86,7 @@ export class Input {
     window.addEventListener('keydown', this.onKeyDown, { passive: false });
     window.addEventListener('keyup', this.onKeyUp);
     window.addEventListener('blur', this.onBlur);
+    document.addEventListener('visibilitychange', this.onVisibility);
   }
 
   private onKeyDown = (e: KeyboardEvent): void => {
@@ -81,6 +101,7 @@ export class Input {
     if (e.repeat) return;
     this.down.add(e.code);
     this.edge.add(e.code);
+    this.keyOrder.set(e.code, ++this.orderSeq);
     this.sysDown.add(e.code);
     this.sysPressedSet.add(e.code);
   };
@@ -92,9 +113,27 @@ export class Input {
 
   /** 切窗口时松开所有键，避免"一直往右走"的经典 bug */
   private onBlur = (): void => {
-    this.down.clear();
-    this.sysDown.clear();
+    this.clearAll();
   };
+
+  private onVisibility = (): void => {
+    if (document.hidden) this.clearAll();
+  };
+
+  /** 全清。keydown 收到了但 keyup 丢了（切窗口、锁屏、手机触摸被系统吃掉）时兜底。 */
+  private clearAll(): void {
+    this.down.clear();
+    this.edge.clear();
+    this.sysDown.clear();
+    this.releaseVirtual();
+  }
+
+  /** 触摸层用：任何一根手指抬起/取消，都把虚拟键全松开 */
+  releaseVirtual(): void {
+    for (const v of [this.vpad1, this.vpad2]) {
+      for (const k of ACTIONS) (v[k] as boolean) = false;
+    }
+  }
 
   /** 触摸层调用 */
   setVirtual(p2: boolean, key: keyof PadState, on: boolean): void {
@@ -113,12 +152,18 @@ export class Input {
   }
 
   private apply(pad: PadState, vpad: PadState, map: KeyMap): void {
+    /**
+     * 每一帧必须"从零重建"这几个布尔值。
+     * 之前的写法只在按下时置 true、从不置回 false ——
+     * 键一旦按下就永远保持按下，人物会一直往一个方向走，
+     * 再按反方向则 dx 算成 0，表现为"一直在动但完全操作不了"。
+     */
     for (const k in map) {
       const slot = map[k]!;
       if (slot === 'dx' || slot === 'dy') continue;
-      if (this.down.has(k)) (pad[slot] as boolean) = true;
+      (pad[slot] as boolean) = this.down.has(k);
     }
-    for (const k of ['up', 'down', 'left', 'right', 'punch', 'kick', 'jump', 'superBtn'] as const) {
+    for (const k of ACTIONS) {
       if (vpad[k]) (pad[k] as boolean) = true;
     }
 
@@ -135,8 +180,17 @@ export class Input {
     pad.pressedJump = tapped('jump');
     pad.pressedSuper = tapped('superBtn');
 
-    pad.dx = (pad.right ? 1 : 0) - (pad.left ? 1 : 0);
-    pad.dy = (pad.down ? 1 : 0) - (pad.up ? 1 : 0);
+    // 方向冲突裁决：左右/上下同时按住时，取"最后按下的那个"。
+    // 原先直接相减会得到 0，玩家会觉得游戏卡死了。
+    const slotOrder = (slot: keyof PadState): number => {
+      let best = 0;
+      for (const k in map) {
+        if (map[k] === slot) best = Math.max(best, this.keyOrder.get(k) ?? 0);
+      }
+      return best;
+    };
+    pad.dx = resolveAxis(pad.left, pad.right, slotOrder('left'), slotOrder('right'));
+    pad.dy = resolveAxis(pad.up, pad.down, slotOrder('up'), slotOrder('down'));
   }
 
   /** 每帧开头调用 */

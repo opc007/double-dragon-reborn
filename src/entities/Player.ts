@@ -167,10 +167,11 @@ export class Player extends Fighter {
   private handleMovement(pad: PadState, ctx: { enemies: Fighter[]; playerStart: number }): void {
     if (this.state !== 'idle' && this.state !== 'walk' && this.state !== 'air') return;
 
-    // 纵深：上下切档
+    // 纵深：上下切档。必须读裁决后的 dy，而不是原始 up/down ——
+    // 两个方向同时按住时，原始布尔量会让"先减后加"互相抵消，看起来完全没反应。
     if (!this.airborne) {
-      if (pad.up && this.band > 0) { this.band--; this.setState(this.state === 'walk' ? 'walk' : 'idle'); }
-      if (pad.down && this.band < 2) { this.band++; this.setState(this.state === 'walk' ? 'walk' : 'idle'); }
+      if (pad.dy < 0 && this.band > 0) { this.band--; this.setState(this.state === 'walk' ? 'walk' : 'idle'); }
+      if (pad.dy > 0 && this.band < 2) { this.band++; this.setState(this.state === 'walk' ? 'walk' : 'idle'); }
     }
 
     // 水平
