@@ -1,0 +1,24 @@
+{
+  "name": "double-dragon-reborn",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "description": "双截龙 · 重生 — 浏览器里的 FC 清版动作游戏。复刻 Technos Japan 1988 版核心机制，TypeScript + Canvas 2D，零二进制资源。",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc --noEmit && vite build",
+    "preview": "vite preview",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "typecheck": "tsc --noEmit",
+    "smoke": "npm run build && node scripts/smoke.mjs",
+    "balance": "vite-node scripts/balance.ts 200",
+    "e2e": "npm run build && node scripts/smoke.mjs"
+  },
+  "devDependencies": {
+    "playwright": "^1.49.0",
+    "typescript": "^5.4.5",
+    "vite": "^5.2.0",
+    "vitest": "^1.6.0"
+  }
+}
